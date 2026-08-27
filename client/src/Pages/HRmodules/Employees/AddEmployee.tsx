@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -73,6 +74,9 @@ interface Role {
 
 interface Department { id: string; name: string; }
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  axios.isAxiosError<{ error?: string }>(error) ? error.response?.data?.error || fallback : fallback;
+
 export default function AddEmployee() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -124,14 +128,20 @@ export default function AddEmployee() {
       const response = await api.get("/hr/roles/get");
       if (response.data.success) {
         setRoles(response.data.data || []);
+      } else {
+        toast.error(response.data.error || "Failed to load roles");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching roles:", error);
       toast.error("Failed to load roles");
     } finally {
       setLoadingRoles(false);
     }
   };
+
+  // Load the role options when the employee form opens, not only when the
+  // management dialog is opened.
+  useEffect(() => { fetchRoles(); }, []);
 
   const handleAddRole = () => {
     setEditingRole(null);
@@ -170,10 +180,9 @@ export default function AddEmployee() {
         form.setValue("role", "");
       }
       setRoleToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting role:", error);
-      const errorMessage = error.response?.data?.error || "Failed to delete role";
-      toast.error(errorMessage);
+      toast.error(getErrorMessage(error, "Failed to delete role"));
     } finally {
       setDeletingRole(false);
     }
@@ -210,10 +219,9 @@ export default function AddEmployee() {
       setEditingRole(null);
       setRoleName("");
       fetchRoles();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving role:", error);
-      const errorMessage = error.response?.data?.error || "Failed to save role";
-      toast.error(errorMessage);
+      toast.error(getErrorMessage(error, "Failed to save role"));
     } finally {
       setSubmittingRole(false);
     }
@@ -238,11 +246,9 @@ export default function AddEmployee() {
       form.reset();
       // Trigger table refresh
       setRefreshTrigger((prev) => prev + 1);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating employee:", error);
-      const errorMessage =
-        error.response?.data?.error || "Failed to add employee";
-      toast.error(errorMessage);
+      toast.error(getErrorMessage(error, "Failed to add employee"));
     } finally {
       setSubmitting(false);
     }
@@ -348,7 +354,7 @@ export default function AddEmployee() {
                   name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Briefcase className="h-4 w-4" />Role</FormLabel>
+                      <div className="flex items-center justify-between gap-2"><FormLabel className="flex items-center gap-2"><Briefcase className="h-4 w-4" />Role</FormLabel><Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={handleAddRole} disabled={submitting}><Plus className="mr-1 h-3.5 w-3.5" />Manage</Button></div>
                       <Select onValueChange={field.onChange} value={field.value} disabled={submitting || loadingRoles}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
                         <SelectContent>{roles.map((role) => <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>)}</SelectContent>

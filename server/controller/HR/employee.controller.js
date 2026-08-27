@@ -1,4 +1,4 @@
-const wrapTenantHandlers = require("../../Utils/wrapTenantHandlers");
+const { main: prisma } = require("../../prisma/prisma");
 
 const generateEmployeeId = async (prisma, store_id) => {
   const prefix = "EMP";
@@ -84,7 +84,7 @@ const createEmployee = async (req, res) => {
     }
 
     // Check if email already exists
-    const existingEmployee = await req.prisma.employee.findUnique({
+    const existingEmployee = await prisma.employee.findUnique({
       where: { email },
     });
 
@@ -96,17 +96,17 @@ const createEmployee = async (req, res) => {
     }
 
     // Generate unique employee ID
-    const employeeId = await generateEmployeeId(req.prisma, null); // store_id commented out
+    const employeeId = await generateEmployeeId(prisma, null); // store_id commented out
 
     if (departmentId) {
-      const department = await req.prisma.department.findUnique({ where: { id: departmentId } });
+      const department = await prisma.department.findUnique({ where: { id: departmentId } });
       if (!department) {
         return res.status(400).json({ success: false, error: "Selected department does not exist" });
       }
     }
 
     // Create employee
-    const employee = await req.prisma.employee.create({
+    const employee = await prisma.employee.create({
       data: {
         employeeId,
         // store_id,
@@ -148,7 +148,7 @@ const getEmployees = async (req, res) => {
   try {
     // const store_id = req.user?.store_id;
 
-    const employees = await req.prisma.employee.findMany({
+    const employees = await prisma.employee.findMany({
       // where: { store_id },
       orderBy: { createdAt: "desc" },
       include: { department: true },
@@ -184,7 +184,7 @@ const updateEmployee = async (req, res) => {
     // const store_id = req.user?.store_id;
 
     // Check if employee exists
-    const existingEmployee = await req.prisma.employee.findFirst({
+    const existingEmployee = await prisma.employee.findFirst({
       where: {
         id,
         // store_id,
@@ -200,7 +200,7 @@ const updateEmployee = async (req, res) => {
 
     // Check if email is being changed and if it already exists
     if (email && email !== existingEmployee.email) {
-      const emailExists = await req.prisma.employee.findUnique({
+      const emailExists = await prisma.employee.findUnique({
         where: { email: email.trim().toLowerCase() },
       });
 
@@ -247,7 +247,7 @@ const updateEmployee = async (req, res) => {
     }
     if (departmentId !== undefined) {
       if (departmentId) {
-        const department = await req.prisma.department.findUnique({ where: { id: departmentId } });
+        const department = await prisma.department.findUnique({ where: { id: departmentId } });
         if (!department) {
           return res.status(400).json({ success: false, error: "Selected department does not exist" });
         }
@@ -255,7 +255,7 @@ const updateEmployee = async (req, res) => {
       updateData.departmentId = departmentId || null;
     }
 
-    const employee = await req.prisma.employee.update({
+    const employee = await prisma.employee.update({
       where: { id },
       data: updateData,
       include: { department: true },
@@ -289,7 +289,7 @@ const deleteEmployee = async (req, res) => {
     // const store_id = req.user?.store_id;
 
     // Check if employee exists
-    const employee = await req.prisma.employee.findFirst({
+    const employee = await prisma.employee.findFirst({
       where: {
         id,
         // store_id,
@@ -304,7 +304,7 @@ const deleteEmployee = async (req, res) => {
     }
 
     // Delete employee (cascade will handle related records)
-    await req.prisma.employee.delete({
+    await prisma.employee.delete({
       where: { id },
     });
 
@@ -321,9 +321,9 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-module.exports = wrapTenantHandlers({
+module.exports = {
   createEmployee,
   getEmployees,
   updateEmployee,
   deleteEmployee,
-});
+};

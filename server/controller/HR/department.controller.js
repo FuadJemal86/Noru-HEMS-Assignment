@@ -1,4 +1,4 @@
-const wrapTenantHandlers = require("../../Utils/wrapTenantHandlers");
+const { main: prisma } = require("../../prisma/prisma");
 const normalizeDepartmentName = (name) => name?.trim();
 
 const createDepartment = async (req, res) => {
@@ -10,7 +10,7 @@ const createDepartment = async (req, res) => {
       return res.status(400).json({ success: false, error: "Department name is required" });
     }
 
-    const department = await req.prisma.department.create({ data: { name, description } });
+    const department = await prisma.department.create({ data: { name, description } });
     res.status(201).json({ success: true, data: department });
   } catch (error) {
     if (error.code === "P2002") {
@@ -23,7 +23,7 @@ const createDepartment = async (req, res) => {
 
 const getDepartments = async (req, res) => {
   try {
-    const departments = await req.prisma.department.findMany({
+    const departments = await prisma.department.findMany({
       include: { _count: { select: { employees: true } } },
       orderBy: { name: "asc" },
     });
@@ -36,7 +36,7 @@ const getDepartments = async (req, res) => {
 
 const updateDepartment = async (req, res) => {
   try {
-    const existing = await req.prisma.department.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.department.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ success: false, error: "Department not found" });
 
     const data = {};
@@ -47,7 +47,7 @@ const updateDepartment = async (req, res) => {
     }
     if (req.body.description !== undefined) data.description = req.body.description?.trim() || null;
 
-    const department = await req.prisma.department.update({ where: { id: req.params.id }, data });
+    const department = await prisma.department.update({ where: { id: req.params.id }, data });
     res.status(200).json({ success: true, data: department });
   } catch (error) {
     if (error.code === "P2002") {
@@ -60,9 +60,9 @@ const updateDepartment = async (req, res) => {
 
 const deleteDepartment = async (req, res) => {
   try {
-    const department = await req.prisma.department.findUnique({ where: { id: req.params.id } });
+    const department = await prisma.department.findUnique({ where: { id: req.params.id } });
     if (!department) return res.status(404).json({ success: false, error: "Department not found" });
-    await req.prisma.department.delete({ where: { id: req.params.id } });
+    await prisma.department.delete({ where: { id: req.params.id } });
     res.status(200).json({ success: true, message: "Department deleted successfully" });
   } catch (error) {
     console.error("Error deleting department:", error);
@@ -74,9 +74,9 @@ const deleteDepartment = async (req, res) => {
 
 // Create a new schedule
 
-module.exports = wrapTenantHandlers({
+module.exports = {
   createDepartment,
   getDepartments,
   updateDepartment,
   deleteDepartment,
-});
+};

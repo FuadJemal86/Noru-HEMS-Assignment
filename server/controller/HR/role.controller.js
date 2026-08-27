@@ -1,4 +1,4 @@
-const wrapTenantHandlers = require("../../Utils/wrapTenantHandlers");
+const { main: prisma } = require("../../prisma/prisma");
 
 const createRole = async (req, res) => {
   try {
@@ -13,7 +13,7 @@ const createRole = async (req, res) => {
     }
 
     // Check if role already exists
-    const existingRole = await req.prisma.roles.findFirst({
+    const existingRole = await prisma.roles.findFirst({
       where: {
         name: name.trim(),
       },
@@ -27,7 +27,7 @@ const createRole = async (req, res) => {
     }
 
     // Create role
-    const role = await req.prisma.roles.create({
+    const role = await prisma.roles.create({
       data: {
         name: name.trim(),
       },
@@ -56,7 +56,7 @@ const createRole = async (req, res) => {
 
 const getRoles = async (req, res) => {
   try {
-    const roles = await req.prisma.roles.findMany({
+    const roles = await prisma.roles.findMany({
       orderBy: { name: "asc" },
     });
 
@@ -78,7 +78,7 @@ const updateRole = async (req, res) => {
     const { name } = req.body;
 
     // Check if role exists
-    const existingRole = await req.prisma.roles.findUnique({
+    const existingRole = await prisma.roles.findUnique({
       where: { id },
     });
 
@@ -98,7 +98,7 @@ const updateRole = async (req, res) => {
     }
 
     // Check if new name already exists (excluding current role)
-    const nameExists = await req.prisma.roles.findFirst({
+    const nameExists = await prisma.roles.findFirst({
       where: {
         name: name.trim(),
         NOT: { id },
@@ -113,7 +113,7 @@ const updateRole = async (req, res) => {
     }
 
     // Update role
-    const role = await req.prisma.roles.update({
+    const role = await prisma.roles.update({
       where: { id },
       data: {
         name: name.trim(),
@@ -146,7 +146,7 @@ const deleteRole = async (req, res) => {
     const { id } = req.params;
 
     // Check if role exists
-    const role = await req.prisma.roles.findUnique({
+    const role = await prisma.roles.findUnique({
       where: { id },
     });
 
@@ -158,7 +158,7 @@ const deleteRole = async (req, res) => {
     }
 
     // Check if any employees are using this role
-    const employeesWithRole = await req.prisma.employee.findFirst({
+    const employeesWithRole = await prisma.employee.findFirst({
       where: {
         role: role.name,
       },
@@ -172,7 +172,7 @@ const deleteRole = async (req, res) => {
     }
 
     // Delete role
-    await req.prisma.roles.delete({
+    await prisma.roles.delete({
       where: { id },
     });
 
@@ -193,9 +193,9 @@ const deleteRole = async (req, res) => {
 
 // Create a new leave type
 
-module.exports = wrapTenantHandlers({
+module.exports = {
   createRole,
   getRoles,
   updateRole,
   deleteRole,
-});
+};
