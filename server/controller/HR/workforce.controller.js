@@ -7,6 +7,7 @@ const SHIFT_STATUSES = new Set(["SCHEDULED", "CANCELLED"]);
 
 const day = (value) => (typeof value === "string" && DAY_PATTERN.test(value) ? new Date(`${value}T00:00:00.000Z`) : null);
 const timeIsValid = (value) => typeof value === "string" && TIME_PATTERN.test(value);
+const dayKey = (value) => new Date(value).toISOString().slice(0, 10);
 const employeeSelect = { id: true, employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } };
 
 const shiftInclude = { employee: { select: employeeSelect }, attendance: true };
@@ -142,13 +143,16 @@ const getWorkforceReport = async (req, res) => {
     if (end < start) return res.status(400).json({ success: false, error: "End date must be on or after start date" });
     const range = { gte: start, lte: end };
     const [shifts, attendance] = await Promise.all([
-      prisma.shift.findMany({ where: { shiftDate: range, status: "SCHEDULED" }, select: { employeeId: true, startTime: true, endTime: true, breakMinutes: true } }),
+      prisma.shift.findMany({ where: { shiftDate: range, status: "SCHEDULED" }, select: { employeeId: true, shiftDate: true, startTime: true, endTime: true, breakMinutes: true } }),
       prisma.attendance.findMany({ where: { date: range }, select: { employeeId: true, clockIn: true, clockOut: true, status: true } }),
     ]);
     const scheduledMinutes = shifts.reduce((total, shift) => { const [sh, sm] = shift.startTime.split(":").map(Number); const [eh, em] = shift.endTime.split(":").map(Number); return total + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - shift.breakMinutes); }, 0);
     const workedMinutes = attendance.reduce((total, item) => total + (item.clockIn && item.clockOut ? Math.round((item.clockOut - item.clockIn) / 60000) : 0), 0);
     const recordedEmployeeDays = new Set(attendance.map((item) => item.employeeId)).size;
-    res.json({ success: true, data: { startDate: start, endDate: end, scheduledShifts: shifts.length, attendanceRecords: attendance.length, present: attendance.filter((item) => item.status === "PRESENT" || item.status === "LATE").length, late: attendance.filter((item) => item.status === "LATE").length, absent: attendance.filter((item) => item.status === "ABSENT").length, scheduledHours: Number((scheduledMinutes / 60).toFixed(2)), workedHours: Number((workedMinutes / 60).toFixed(2)), recordedEmployees: recordedEmployeeDays } });
+    const attendanceKeys = new Set(attendance.map((item) => `${item.employeeId}:${dayKey(item.date)}`));
+    const unrecordedScheduledShifts = shifts.filter((shift) => !attendanceKeys.has(`${shift.employeeId}:${dayKey(shift.shiftDate)}`)).length;
+    const attendanceRate = shifts.length ? Number((((shifts.length - unrecordedScheduledShifts) / shifts.length) * 100).toFixed(1)) : 0;
+    res.json({ success: true, data: { startDate: start, endDate: end, scheduledShifts: shifts.length, attendanceRecords: attendance.length, present: attendance.filter((item) => item.status === "PRESENT" || item.status === "LATE").length, late: attendance.filter((item) => item.status === "LATE").length, absent: attendance.filter((item) => item.status === "ABSENT").length, unrecordedScheduledShifts, attendanceRate, scheduledHours: Number((scheduledMinutes / 60).toFixed(2)), workedHours: Number((workedMinutes / 60).toFixed(2)), recordedEmployees: recordedEmployeeDays } });
   } catch (error) {
     console.error("Error building workforce report:", error);
     res.status(500).json({ success: false, error: "Internal server error" });
