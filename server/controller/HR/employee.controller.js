@@ -1,5 +1,6 @@
 const { main: prisma } = require("../../prisma/prisma");
 
+
 const generateEmployeeId = async (prisma, store_id) => {
   const prefix = "EMP";
   let counter = 1;
@@ -37,7 +38,6 @@ const generateEmployeeId = async (prisma, store_id) => {
 };
 
 // Create a new employee
-
 const createEmployee = async (req, res) => {
   try {
     const {
@@ -51,8 +51,6 @@ const createEmployee = async (req, res) => {
       status,
       departmentId,
     } = req.body;
-
-    // const store_id = req.user?.store_id;
 
     // Validation
     if (!firstName || !lastName) {
@@ -96,7 +94,7 @@ const createEmployee = async (req, res) => {
     }
 
     // Generate unique employee ID
-    const employeeId = await generateEmployeeId(prisma, null); // store_id commented out
+    const employeeId = await generateEmployeeId(prisma, null);
 
     if (departmentId) {
       const department = await prisma.department.findUnique({ where: { id: departmentId } });
@@ -143,13 +141,10 @@ const createEmployee = async (req, res) => {
 };
 
 // Get all employees
-
 const getEmployees = async (req, res) => {
   try {
-    // const store_id = req.user?.store_id;
 
     const employees = await prisma.employee.findMany({
-      // where: { store_id },
       orderBy: { createdAt: "desc" },
       include: { department: true },
     });
@@ -165,7 +160,6 @@ const getEmployees = async (req, res) => {
 };
 
 // Get employee by ID
-
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -181,14 +175,10 @@ const updateEmployee = async (req, res) => {
       departmentId,
     } = req.body;
 
-    // const store_id = req.user?.store_id;
 
     // Check if employee exists
     const existingEmployee = await prisma.employee.findFirst({
-      where: {
-        id,
-        // store_id,
-      },
+      where: { id }
     });
 
     if (!existingEmployee) {
@@ -282,7 +272,6 @@ const updateEmployee = async (req, res) => {
 };
 
 // Delete employee
-
 const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -312,6 +301,7 @@ const deleteEmployee = async (req, res) => {
       success: true,
       message: "Employee deleted successfully",
     });
+
   } catch (error) {
     console.error("Error deleting employee:", error);
     res.status(500).json({

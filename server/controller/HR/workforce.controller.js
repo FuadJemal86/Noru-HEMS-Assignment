@@ -144,7 +144,7 @@ const getWorkforceReport = async (req, res) => {
     const range = { gte: start, lte: end };
     const [shifts, attendance] = await Promise.all([
       prisma.shift.findMany({ where: { shiftDate: range, status: "SCHEDULED" }, select: { employeeId: true, shiftDate: true, startTime: true, endTime: true, breakMinutes: true } }),
-      prisma.attendance.findMany({ where: { date: range }, select: { employeeId: true, clockIn: true, clockOut: true, status: true } }),
+      prisma.attendance.findMany({ where: { date: range }, select: { employeeId: true, date: true, clockIn: true, clockOut: true, status: true } }),
     ]);
     const scheduledMinutes = shifts.reduce((total, shift) => { const [sh, sm] = shift.startTime.split(":").map(Number); const [eh, em] = shift.endTime.split(":").map(Number); return total + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - shift.breakMinutes); }, 0);
     const workedMinutes = attendance.reduce((total, item) => total + (item.clockIn && item.clockOut ? Math.round((item.clockOut - item.clockIn) / 60000) : 0), 0);

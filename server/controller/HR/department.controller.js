@@ -1,6 +1,7 @@
 const { main: prisma } = require("../../prisma/prisma");
 const normalizeDepartmentName = (name) => name?.trim();
 
+// create department
 const createDepartment = async (req, res) => {
   try {
     const name = normalizeDepartmentName(req.body.name);
@@ -21,6 +22,7 @@ const createDepartment = async (req, res) => {
   }
 };
 
+//  get ..........
 const getDepartments = async (req, res) => {
   try {
     const departments = await prisma.department.findMany({
@@ -34,6 +36,7 @@ const getDepartments = async (req, res) => {
   }
 };
 
+// update ......
 const updateDepartment = async (req, res) => {
   try {
     const existing = await prisma.department.findUnique({ where: { id: req.params.id } });
@@ -58,6 +61,7 @@ const updateDepartment = async (req, res) => {
   }
 };
 
+// delete .......
 const deleteDepartment = async (req, res) => {
   try {
     const department = await prisma.department.findUnique({ where: { id: req.params.id } });
@@ -70,9 +74,7 @@ const deleteDepartment = async (req, res) => {
   }
 };
 
-// ==================== SCHEDULE FUNCTIONS ====================
 
-// Create a new schedule
 
 module.exports = {
   createDepartment,
