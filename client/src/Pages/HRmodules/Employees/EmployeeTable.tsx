@@ -17,17 +17,12 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  FileText,
-  Calendar,
-  Image as ImageIcon,
-  FileIcon,
   Settings,
   Building2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import api, { nPoint } from "@/service/api";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,55 +71,23 @@ import {
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PhoneInput, getCountryByDialCode } from "@/components/ui/phone-input";
 
 // Schema
 const employeeSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email format"),
-  phone: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val.trim() === "") return true; // Optional field
-        // Remove spaces and validate phone format
-        const cleaned = val.replace(/\s/g, "");
-
-        if (!cleaned.startsWith("+")) {
-          return false; // Must start with +
-        }
-
-        // Find matching country by dial code (sorted by length to match longest first)
-        const country = getCountryByDialCode(cleaned);
-        if (!country) {
-          return false; // Invalid country code
-        }
-
-        // Extract number part (after country code)
-        const numberPart = cleaned.replace(country.dialCode, "");
-
-        // Validate length based on country
-        if (numberPart.length < country.minLength || numberPart.length > country.maxLength) {
-          return false;
-        }
-
-        // Should only contain digits after country code
-        return /^\d+$/.test(numberPart);
-      },
-      { message: "Please enter a valid phone number with country code" }
-    ),
+  phone: z.string().optional(),
   role: z.string().min(1, "Role is required"),
-  hourlyRate: z
+  monthlySalary: z
     .string()
-    .min(1, "Hourly rate is required")
+    .min(1, "Monthly salary is required")
     .refine(
       (val) => {
         const num = parseFloat(val);
         return !isNaN(num) && num >= 0;
       },
-      { message: "Hourly rate must be a positive number" }
+      { message: "Monthly salary must be a positive number" }
     ),
   status: z.enum(["active", "inactive"]),
   departmentId: z.string().optional(),
@@ -141,7 +104,7 @@ type Employee = {
   email: string;
   phone?: string | null;
   role: string;
-  hourlyRate: number;
+  monthlySalary: number;
   profilePhoto?: string | null;
   status: string;
   createdAt: string;
@@ -184,8 +147,6 @@ export default function EmployeeTable({
   const [roles, setRoles] = useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
-  const [employeeDocuments, setEmployeeDocuments] = useState<any[]>([]);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [roleName, setRoleName] = useState("");
@@ -202,7 +163,7 @@ export default function EmployeeTable({
       email: "",
       phone: "",
       role: "",
-      hourlyRate: "",
+      monthlySalary: "",
       status: "active",
       departmentId: "",
     },
@@ -362,7 +323,7 @@ export default function EmployeeTable({
       email: employee.email,
       phone: employee.phone || "",
       role: employee.role,
-      hourlyRate: employee.hourlyRate.toString(),
+      monthlySalary: employee.monthlySalary.toString(),
       status: employee.status as "active" | "inactive",
       departmentId: employee.departmentId || "",
     });
@@ -380,7 +341,7 @@ export default function EmployeeTable({
         email: data.email.trim().toLowerCase(),
         phone: data.phone?.trim().replace(/\s/g, "") || null, // Remove spaces from phone number
         role: data.role.trim(),
-        hourlyRate: parseFloat(data.hourlyRate),
+        monthlySalary: parseFloat(data.monthlySalary),
         status: data.status,
         departmentId: data.departmentId || null,
       };
@@ -442,63 +403,10 @@ export default function EmployeeTable({
     });
   };
 
-  const handleViewDetail = async (employee: Employee) => {
+  const handleViewDetail = (employee: Employee) => {
     setDetailEmployee(employee);
-    setLoadingDocuments(true);
-    try {
-      const response = await api.get(`/hr/documents/get?employeeId=${employee.id}`);
-      if (response.data.success) {
-        setEmployeeDocuments(response.data.data || []);
-      }
-    } catch (error: any) {
-      console.error("Error fetching employee documents:", error);
-      toast.error("Failed to load employee documents");
-    } finally {
-      setLoadingDocuments(false);
-    }
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "N/A";
-    return format(new Date(dateString), "MMM dd, yyyy");
-  };
-
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return "N/A";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
-  const isImage = (mimeType: string | null) => {
-    return mimeType?.startsWith("image/") || false;
-  };
-
-  const getCategoryBadge = (category: string) => {
-    const colors: Record<string, string> = {
-      Identity: "bg-blue-500",
-      Contract: "bg-green-500",
-      Certification: "bg-purple-500",
-      Educational: "bg-orange-500",
-      Other: "bg-gray-500",
-    };
-    return colors[category] || "bg-gray-500";
-  };
-
-  // Helper function to construct correct file URL
-  const getFileUrl = (fileUrl: string) => {
-    if (!fileUrl) return "";
-    // If already a full URL, return as is
-    if (fileUrl.startsWith("http")) return fileUrl;
-
-    // Use the fileUrl from database directly (e.g., /api/images/uploads/documents/filename.jpg)
-    // Just prepend the domain from nPoint
-    // Remove leading slash from fileUrl to avoid double slashes since nPoint ends with /
-    const path = fileUrl.startsWith("/") ? fileUrl.substring(1) : fileUrl;
-    return `${nPoint}${path}`;
-  };
-
-  // Helper function to construct correct profile photo URL
   const getProfilePhotoUrl = (profilePhoto: string | null | undefined) => {
     if (!profilePhoto) return undefined;
     // If already a full URL, return as is
@@ -553,7 +461,7 @@ export default function EmployeeTable({
                 <TableHead className="px-4 py-3 hidden lg:table-cell">Email</TableHead>
                 <TableHead className="px-4 py-3 hidden lg:table-cell">Phone</TableHead>
                 <TableHead className="px-4 py-3 hidden md:table-cell">Role</TableHead>
-                <TableHead className="px-4 py-3 hidden lg:table-cell">Hourly Rate</TableHead>
+                <TableHead className="px-4 py-3 hidden lg:table-cell">Monthly Salary</TableHead>
                 <TableHead className="px-4 py-3 hidden md:table-cell">Status</TableHead>
                 <TableHead className="text-right px-4 py-3 hidden md:table-cell">Actions</TableHead>
               </TableRow>
@@ -661,7 +569,7 @@ export default function EmployeeTable({
                           <TableCell className="hidden lg:table-cell px-4 py-3">
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="font-medium">${employee.hourlyRate.toFixed(2)}</span>
+                              <span className="font-medium">${employee.monthlySalary.toFixed(2)}</span>
                             </div>
                           </TableCell>
                           <TableCell className="hidden md:table-cell px-4 py-3">
@@ -741,10 +649,10 @@ export default function EmployeeTable({
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <DollarSign className="h-4 w-4" />
-                                    <span>Hourly Rate</span>
+                                    <span>Monthly Salary</span>
                                   </div>
                                   <span className="text-sm font-medium">
-                                    ${employee.hourlyRate.toFixed(2)}/hr
+                                    ${employee.monthlySalary.toFixed(2)}/month
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -898,12 +806,7 @@ export default function EmployeeTable({
                         Phone (Optional)
                       </FormLabel>
                       <FormControl>
-                        <PhoneInput
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          defaultCountry="AU"
-                          disabled={submitting}
-                        />
+                        <Input type="tel" placeholder="091 234 5678" {...field} disabled={submitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -965,12 +868,12 @@ export default function EmployeeTable({
 
                 <FormField
                   control={form.control}
-                  name="hourlyRate"
+                  name="monthlySalary"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4" />
-                        Hourly Rate
+                        Monthly Salary
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -1119,7 +1022,6 @@ export default function EmployeeTable({
         onOpenChange={(open: boolean) => {
           if (!open) {
             setDetailEmployee(null);
-            setEmployeeDocuments([]);
           }
         }}
       >
@@ -1185,121 +1087,12 @@ export default function EmployeeTable({
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <DollarSign className="h-3 w-3" />
-                    Hourly Rate
+                    Monthly Salary
                   </p>
-                  <p className="font-semibold text-sm sm:text-base">${detailEmployee.hourlyRate.toFixed(2)}/hr</p>
+                  <p className="font-semibold text-sm sm:text-base">${detailEmployee.monthlySalary.toFixed(2)}/month</p>
                 </div>
               </div>
 
-              {/* Documents Section */}
-              <div className="border-t pt-4 sm:pt-6">
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-                    <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Documents
-                  </h3>
-                </div>
-                {loadingDocuments ? (
-                  <div className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading documents...</p>
-                  </div>
-                ) : employeeDocuments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">No documents found for this employee</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 sm:space-y-4">
-                    {employeeDocuments.map((document) => (
-                      <div
-                        key={document.id}
-                        className="border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-0">
-                          <div className="flex-1 min-w-0 w-full sm:w-auto">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <Badge className={getCategoryBadge(document.category)}>
-                                {document.category}
-                              </Badge>
-                              <h4 className="font-semibold text-sm sm:text-base truncate">{document.documentName}</h4>
-                            </div>
-                            {document.documentType && (
-                              <p className="text-xs sm:text-sm text-muted-foreground mb-2">
-                                Type: {document.documentType}
-                              </p>
-                            )}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <FileIcon className="h-3 w-3 shrink-0" />
-                                {formatFileSize(document.fileSize)}
-                              </div>
-                              {document.issueDate && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3 shrink-0" />
-                                  Issue: {formatDate(document.issueDate)}
-                                </div>
-                              )}
-                              {document.expiryDate && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3 shrink-0" />
-                                  Expiry:{" "}
-                                  <span
-                                    className={
-                                      new Date(document.expiryDate) < new Date()
-                                        ? "text-red-500 font-medium"
-                                        : ""
-                                    }
-                                  >
-                                    {formatDate(document.expiryDate)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            {document.description && (
-                              <p className="text-xs sm:text-sm mt-2 text-muted-foreground line-clamp-2">
-                                {document.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="ml-0 sm:ml-4 shrink-0">
-                            <a
-                              href={getFileUrl(document.fileUrl)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 text-primary hover:underline text-xs sm:text-sm"
-                            >
-                              {isImage(document.mimeType) ? (
-                                <>
-                                  <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                  View Image
-                                </>
-                              ) : (
-                                <>
-                                  <FileIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                  Download
-                                </>
-                              )}
-                            </a>
-                          </div>
-                        </div>
-                        {isImage(document.mimeType) && (
-                          <div className="mt-3 border rounded-md overflow-hidden">
-                            <img
-                              src={getFileUrl(document.fileUrl)}
-                              alt={document.documentName}
-                              className="w-full max-h-48 object-contain bg-muted/30"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = "none";
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
@@ -1307,7 +1100,6 @@ export default function EmployeeTable({
               variant="outline" 
               onClick={() => {
                 setDetailEmployee(null);
-                setEmployeeDocuments([]);
               }}
               className="w-full sm:w-auto"
             >

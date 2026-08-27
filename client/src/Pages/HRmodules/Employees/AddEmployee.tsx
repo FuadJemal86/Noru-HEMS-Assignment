@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Loader2, User, Mail, Phone, Briefcase, DollarSign, Edit2, Trash2, X, Save, ArrowRight, Building2 } from "lucide-react";
+import { Plus, Loader2, User, Mail, Phone, Briefcase, DollarSign, Edit2, Trash2, X, Save, Building2 } from "lucide-react";
 import api from "@/service/api";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import EmployeeTable from "./EmployeeTable";
 
 import {
@@ -41,55 +40,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PhoneInput, getCountryByDialCode } from "@/components/ui/phone-input";
 
 // Schema
 const employeeSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email format"),
-  phone: z
-    .string()
-    .optional()
-    .refine(
-      (val) => {
-        if (!val || val.trim() === "") return true; // Optional field
-        // Remove spaces and validate phone format
-        const cleaned = val.replace(/\s/g, "");
-
-        if (!cleaned.startsWith("+")) {
-          return false; // Must start with +
-        }
-
-        // Find matching country by dial code (sorted by length to match longest first)
-        const country = getCountryByDialCode(cleaned);
-        if (!country) {
-          return false; // Invalid country code
-        }
-
-        // Extract number part (after country code)
-        const numberPart = cleaned.replace(country.dialCode, "");
-
-        // Validate length based on country
-        if (numberPart.length < country.minLength || numberPart.length > country.maxLength) {
-          return false;
-        }
-
-        // Should only contain digits after country code
-        return /^\d+$/.test(numberPart);
-      },
-      { message: "Please enter a valid phone number with country code" }
-    ),
+  phone: z.string().optional(),
   role: z.string().min(1, "Role is required"),
-  hourlyRate: z
+  monthlySalary: z
     .string()
-    .min(1, "Hourly rate is required")
+    .min(1, "Monthly salary is required")
     .refine(
       (val) => {
         const num = parseFloat(val);
         return !isNaN(num) && num >= 0;
       },
-      { message: "Hourly rate must be a positive number" }
+      { message: "Monthly salary must be a positive number" }
     ),
   status: z.enum(["active", "inactive"]),
   departmentId: z.string().optional(),
@@ -107,7 +74,6 @@ interface Role {
 interface Department { id: string; name: string; }
 
 export default function AddEmployee() {
-  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -119,7 +85,6 @@ export default function AddEmployee() {
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const hasRestoredForm = useRef(false);
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -129,45 +94,11 @@ export default function AddEmployee() {
       email: "",
       phone: "",
       role: "",
-      hourlyRate: "",
+      monthlySalary: "",
       status: "active",
       departmentId: "",
     },
   });
-
-  // Restore form data on component mount (only once)
-  useEffect(() => {
-    if (hasRestoredForm.current) return; // Prevent multiple restorations
-
-    // Check if returning from DocumentUplode with saved data
-    const savedData = sessionStorage.getItem("savedEmployeeFormData");
-    if (savedData) {
-      try {
-        const employeeData = JSON.parse(savedData);
-
-        // Preserve all fields exactly as they were, including role
-        // The role value stays in form state - simple and straightforward
-        form.reset({
-          firstName: employeeData.firstName || "",
-          lastName: employeeData.lastName || "",
-          email: employeeData.email || "",
-          phone: employeeData.phone || "",
-          role: employeeData.role || "", // Preserve the role value - stays in form state
-          hourlyRate: employeeData.hourlyRate?.toString() || "",
-          status: employeeData.status || "active",
-          departmentId: employeeData.departmentId || "",
-        });
-
-        sessionStorage.removeItem("savedEmployeeFormData");
-        hasRestoredForm.current = true; // Mark as restored
-      } catch (error) {
-        console.error("Error restoring form data:", error);
-        hasRestoredForm.current = true; // Mark as restored even on error to prevent retries
-      }
-    } else {
-      hasRestoredForm.current = true; // Mark as restored if no saved data
-    }
-  }, [form]);
 
   useEffect(() => {
     api.get("/hr/departments/get")
@@ -177,7 +108,7 @@ export default function AddEmployee() {
 
   // Set first role ONLY when roles are loaded AND there's no role selected (simple logic)
   useEffect(() => {
-    if (roles.length > 0 && !loadingRoles && hasRestoredForm.current) {
+    if (roles.length > 0 && !loadingRoles) {
       const currentRole = form.getValues("role");
       // Only set first role if no role is selected at all
       if (!currentRole || currentRole.trim() === "") {
@@ -202,17 +133,12 @@ export default function AddEmployee() {
     }
   };
 
-
   const handleAddRole = () => {
     setEditingRole(null);
     setRoleName("");
     setRoleModalOpen(true);
-    // Fetch roles if not already loaded
-    if (roles.length === 0 && !loadingRoles) {
-      fetchRoles();
-    }
+    fetchRoles();
   };
-
 
   const handleEditRole = (role: Role) => {
     setEditingRole(role);
@@ -302,7 +228,7 @@ export default function AddEmployee() {
         email: data.email.trim().toLowerCase(),
         phone: data.phone?.trim().replace(/\s/g, "") || null, // Remove spaces from phone number
         role: data.role.trim(),
-        hourlyRate: parseFloat(data.hourlyRate),
+        monthlySalary: parseFloat(data.monthlySalary),
         status: data.status,
         departmentId: data.departmentId || null,
       };
@@ -321,33 +247,6 @@ export default function AddEmployee() {
       setSubmitting(false);
     }
   };
-
-  const handleNext = async (data: EmployeeFormData) => {
-    // Validate form first
-    const isValid = await form.trigger();
-    if (!isValid) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    // Store employee data in sessionStorage to pass to DocumentUplode
-    const employeeData = {
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
-      email: data.email.trim().toLowerCase(),
-      phone: data.phone?.trim().replace(/\s/g, "") || null,
-      role: data.role.trim(),
-      hourlyRate: parseFloat(data.hourlyRate),
-      status: data.status,
-      departmentId: data.departmentId || null,
-    };
-
-    // Also save form data for restoration if user cancels
-    sessionStorage.setItem("savedEmployeeFormData", JSON.stringify(employeeData));
-    sessionStorage.setItem("pendingEmployeeData", JSON.stringify(employeeData));
-    navigate("/hr/documents-upload");
-  };
-
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
@@ -435,12 +334,7 @@ export default function AddEmployee() {
                         Phone (Optional)
                       </FormLabel>
                       <FormControl>
-                        <PhoneInput
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          defaultCountry="AU"
-                          disabled={submitting}
-                        />
+                        <Input type="tel" placeholder="091 234 5678" {...field} disabled={submitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -454,143 +348,23 @@ export default function AddEmployee() {
                   name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-2">
-                          <Briefcase className="h-4 w-4" />
-                          Role
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={handleAddRole}
-                          disabled={submitting}
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Manage Roles
-                        </Button>
-                      </FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value || undefined}
-                        disabled={submitting || loadingRoles}
-                        onOpenChange={(open) => {
-                          // Fetch roles when dropdown is opened for the first time
-                          if (open && roles.length === 0 && !loadingRoles) {
-                            fetchRoles();
-                          }
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={loadingRoles ? "Loading roles..." : field.value || "Select a role"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {loadingRoles ? (
-                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                              Loading roles...
-                            </div>
-                          ) : roles.length > 0 ? (
-                            <>
-                              {/* If field.value exists but not in roles list, add it so SelectValue can display it */}
-                              {field.value && !roles.some(r => r.name === field.value) && (
-                                <SelectItem value={field.value} key="saved-role">
-                                  {field.value}
-                                </SelectItem>
-                              )}
-                              {roles.map((role) => (
-                                <SelectItem key={role.id} value={role.name}>
-                                  {role.name}
-                                </SelectItem>
-                              ))}
-                            </>
-                          ) : field.value ? (
-                            // If no roles loaded but we have a saved value, show it
-                            <SelectItem value={field.value}>
-                              {field.value}
-                            </SelectItem>
-                          ) : (
-                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                              No roles available. Click "Manage Roles" to create one.
-                            </div>
-                          )}
-                        </SelectContent>
+                      <FormLabel className="flex items-center gap-2"><Briefcase className="h-4 w-4" />Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={submitting || loadingRoles}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                        <SelectContent>{roles.map((role) => <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>)}</SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="hourlyRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Hourly Rate
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="15.00"
-                          {...field}
-                          disabled={submitting}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="departmentId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Building2 className="h-4 w-4" />Department <span className="text-muted-foreground">(Optional)</span></FormLabel>
-                      <Select onValueChange={(value) => field.onChange(value === "unassigned" ? "" : value)} value={field.value || "unassigned"} disabled={submitting}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="unassigned">No department</SelectItem>
-                          {departments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="monthlySalary" render={({ field }) => (
+                  <FormItem><FormLabel className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Monthly Salary</FormLabel><FormControl><Input type="number" step="0.01" min="0" placeholder="15000" {...field} disabled={submitting} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="departmentId" render={({ field }) => (
+                  <FormItem><FormLabel className="flex items-center gap-2"><Building2 className="h-4 w-4" />Department (Optional)</FormLabel><Select onValueChange={(value) => field.onChange(value === "unassigned" ? "" : value)} value={field.value || "unassigned"}><FormControl><SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger></FormControl><SelectContent><SelectItem value="unassigned">No department</SelectItem>{departments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                )} />
               </div>
-
-              <div className="pt-4 flex gap-4">
-                <Button type="submit" disabled={submitting} className="w-full md:w-auto min-w-[200px]">
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adding Employee...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Employee
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={submitting}
-                  className="w-full md:w-auto min-w-[200px]"
-                  onClick={form.handleSubmit(handleNext)}
-                >
-                  <ArrowRight className="mr-2 h-4 w-4" />
-                  Next (Add Document)
-                </Button>
-              </div>
+              <Button type="submit" disabled={submitting} className="min-w-[200px]">{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Adding Employee...</> : <><Plus className="mr-2 h-4 w-4" />Add Employee</>}</Button>
             </form>
           </Form>
         </CardContent>

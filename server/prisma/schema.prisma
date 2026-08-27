@@ -15,24 +15,23 @@ datasource db {
 }
 
 model Employee {
-  id           String   @id @default(uuid())
-  employeeId   String   @unique // e.g., "EMP001"
-  firstName    String
-  lastName     String
-  email        String   @unique
-  phone        String?
-  role         String // e.g., "Cashier", "Manager", "Server"
-  hourlyRate   Float
-  profilePhoto String?
-  status       String   @default("active") // active/inactive
-  departmentId String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  employeeId    String   @unique // e.g., "EMP001"
+  firstName     String
+  lastName      String
+  email         String   @unique
+  phone         String?
+  role          String // e.g., "Cashier", "Manager", "Server"
+  monthlySalary Float
+  profilePhoto  String?
+  status        String   @default("active") // active/inactive
+  departmentId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  schedules Schedule[]
-
-  employeeDocuments EmployeeDocument[]
-  department        Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  shifts     Shift[]
+  attendance Attendance[]
 
   @@index([departmentId])
 }
@@ -47,28 +46,6 @@ model Department {
   employees Employee[]
 }
 
-// Schedule Model
-model Schedule {
-  id         String   @id @default(uuid())
-  employeeId String
-  storeId    String? // Store/Location ID (optional)
-  shiftDate  DateTime
-  startTime  DateTime
-  endTime    DateTime
-  breakTime  Int? // Break time in minutes (e.g., 30 for 30 minutes)
-  position   String? // Role for this shift (e.g., "Cook", "Cashier")
-  notes      String?
-  status     String   @default("scheduled") // scheduled/completed/cancelled
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  //removed tables
-  breakStartTime DateTime? // Break start time
-  breakEndTime   DateTime? // Break end time
-
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-}
-
 // roles
 model Roles {
   id        String   @id @default(uuid())
@@ -77,32 +54,42 @@ model Roles {
   updatedAt DateTime @updatedAt
 }
 
-model EmployeeDocument {
-  id           String  @id @default(cuid())
+// employee shift
+model Shift {
+  id           String   @id @default(uuid())
   employeeId   String
-  documentName String
-  category     String // "Identity", "Contract", "Certification", "Educational", "Other"
-  documentType String? // "Passport", "Employment Contract", etc.
-  fileUrl      String // File path/URL where document is stored
-  fileName     String // Original file name
-  fileSize     Int? // File size in bytes
-  mimeType     String? // "application/pdf", "image/jpeg", etc.
+  shiftDate    DateTime @db.Date
+  startTime    String
+  endTime      String
+  breakMinutes Int      @default(0)
+  notes        String?
+  status       String   @default("SCHEDULED")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  issueDate  DateTime?
-  expiryDate DateTime?
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendance Attendance?
 
-  description String?
+  @@unique([employeeId, shiftDate])
+  @@index([shiftDate, status])
+}
 
-  // Access control
-  visibility String @default("hr_only") // "hr_only", "manager_hr", "all"
-
-  uploadedBy String // Who uploaded this document
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// shift and retains an editable status for absences, leave, or corrections.
+model Attendance {
+  id         String    @id @default(uuid())
+  employeeId String
+  shiftId    String?   @unique
+  date       DateTime  @db.Date
+  clockIn    DateTime?
+  clockOut   DateTime?
+  status     String    @default("PRESENT")
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
-  @@index([employeeId])
-  @@index([category])
-  @@index([expiryDate])
+  @@unique([employeeId, date])
+  @@index([date, status])
 }

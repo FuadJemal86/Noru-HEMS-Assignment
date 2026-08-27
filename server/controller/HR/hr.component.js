@@ -4,5 +4,5 @@ module.exports = {
   ...require("./employee.controller"),
   ...require("./department.controller"),
   ...require("./role.controller"),
-  ...require("./employee-document.controller"),
+  ...require("./workforce.controller"),
 };

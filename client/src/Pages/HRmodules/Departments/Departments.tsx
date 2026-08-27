@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Building2, Edit2, Loader2, Plus, Trash2 } from "lucide-react";
+import axios from "axios";
+import { Building2, Edit2, Loader2, Plus, Trash2, Users } from "lucide-react";
 import api from "@/service/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,9 @@ type Department = {
   description: string | null;
   _count?: { employees: number };
 };
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  axios.isAxiosError<{ error?: string }>(error) ? error.response?.data?.error || fallback : fallback;
 
 export default function Departments() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -73,8 +77,8 @@ export default function Departments() {
       }
       setDialogOpen(false);
       fetchDepartments();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to save department");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to save department"));
     } finally {
       setSaving(false);
     }
@@ -88,8 +92,8 @@ export default function Departments() {
       toast.success("Department deleted successfully");
       setDepartmentToDelete(null);
       fetchDepartments();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to delete department");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to delete department"));
     } finally {
       setSaving(false);
     }
@@ -97,26 +101,40 @@ export default function Departments() {
 
   return (
     <div className="container mx-auto space-y-6 p-4 md:p-6 lg:p-8">
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
+      <Card className="shadow-sm">
+        <CardHeader className="flex-row items-start justify-between gap-4 pb-4">
           <div>
             <CardTitle className="flex items-center gap-2 text-2xl"><Building2 className="h-6 w-6" />Departments</CardTitle>
             <CardDescription className="mt-2 text-base">Create and manage departments for your employees.</CardDescription>
           </div>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Add Department</Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
             <div className="overflow-hidden rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Department</TableHead><TableHead>Description</TableHead><TableHead>Employees</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12 px-4 py-3">#</TableHead>
+                    <TableHead className="px-4 py-3">Department</TableHead>
+                    <TableHead className="px-4 py-3">Description</TableHead>
+                    <TableHead className="px-4 py-3">Employees</TableHead>
+                    <TableHead className="px-4 py-3 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {departments.length === 0 ? <TableRow><TableCell colSpan={4} className="py-12 text-center text-muted-foreground">No departments yet. Add your first department.</TableCell></TableRow> : departments.map((department) => (
-                    <TableRow key={department.id}>
-                      <TableCell className="font-medium">{department.name}</TableCell>
-                      <TableCell className="max-w-md whitespace-normal text-muted-foreground">{department.description || "—"}</TableCell>
-                      <TableCell>{department._count?.employees ?? 0}</TableCell>
-                      <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => openEdit(department)} aria-label={`Edit ${department.name}`}><Edit2 className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDepartmentToDelete(department)} aria-label={`Delete ${department.name}`}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                  {departments.length === 0 ? <TableRow><TableCell colSpan={5} className="py-12 text-center text-muted-foreground">No departments yet. Add your first department.</TableCell></TableRow> : departments.map((department, index) => (
+                    <TableRow key={department.id} className="hover:bg-muted/50">
+                      <TableCell className="w-12 px-4 py-3 font-medium text-muted-foreground">{index + 1}</TableCell>
+                      <TableCell className="px-4 py-3 font-medium">{department.name}</TableCell>
+                      <TableCell className="max-w-md whitespace-normal px-4 py-3 text-muted-foreground">{department.description || "—"}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <span className="inline-flex items-center gap-2 font-medium">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          {department._count?.employees ?? 0}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-right"><Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(department)} aria-label={`Edit ${department.name}`}><Edit2 className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={() => setDepartmentToDelete(department)} aria-label={`Delete ${department.name}`}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -129,7 +147,7 @@ export default function Departments() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingDepartment ? "Edit Department" : "Add Department"}</DialogTitle><DialogDescription>Department names must be unique.</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-2"><div className="space-y-2"><Label htmlFor="department-name">Department Name</Label><Input id="department-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Human Resources" disabled={saving} /></div><div className="space-y-2"><Label htmlFor="department-description">Description <span className="text-muted-foreground">(optional)</span></Label><Textarea id="department-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What this department is responsible for" disabled={saving} /></div></div>
+          <div className="space-y-4 py-2"><div className="space-y-2"><Label htmlFor="department-name">Department Name</Label><Input id="department-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Human Resources" disabled={saving} /></div><div className="space-y-2"><Label htmlFor="department-description">Description <span className="text-muted-foreground">(optional)</span></Label><Textarea id="department-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What this department is responsible for" disabled={saving} aria-describedby="department-description-help" /><p id="department-description-help" className="text-sm text-muted-foreground">Briefly describe this department's responsibilities.</p></div></div>
           <DialogFooter><Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button><Button onClick={saveDepartment} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editingDepartment ? "Save Changes" : "Add Department"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>

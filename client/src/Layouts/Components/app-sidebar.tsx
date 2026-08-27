@@ -6,6 +6,8 @@ import {
   X,
   Target,
   Building2,
+  Briefcase,
+  CalendarClock,
 } from "lucide-react";
 
 import { useState } from "react";
@@ -50,6 +52,16 @@ export function AppSidebar({
             title: "Departments",
             url: "/hr/departments",
             icon: Building2,
+          },
+          {
+            title: "Roles",
+            url: "/hr/roles",
+            icon: Briefcase,
+          },
+          {
+            title: "Workforce",
+            url: "/hr/workforce",
+            icon: CalendarClock,
           },
 
         ]

@@ -46,7 +46,7 @@ const createEmployee = async (req, res) => {
       email,
       phone,
       role,
-      hourlyRate,
+      monthlySalary,
       profilePhoto,
       status,
       departmentId,
@@ -76,7 +76,7 @@ const createEmployee = async (req, res) => {
       });
     }
 
-    if (!hourlyRate || isNaN(parseFloat(hourlyRate)) || parseFloat(hourlyRate) < 0) {
+    if (!monthlySalary || isNaN(parseFloat(monthlySalary)) || parseFloat(monthlySalary) < 0) {
       return res.status(400).json({
         success: false,
         error: "Valid hourly rate is required",
@@ -115,7 +115,7 @@ const createEmployee = async (req, res) => {
         email: email.trim().toLowerCase(),
         phone: phone ? phone.trim() : null,
         role: role.trim(),
-        hourlyRate: parseFloat(hourlyRate),
+        monthlySalary: parseFloat(monthlySalary),
         profilePhoto: profilePhoto || null,
         status: status || "active",
         departmentId: departmentId || null,
@@ -175,7 +175,7 @@ const updateEmployee = async (req, res) => {
       email,
       phone,
       role,
-      hourlyRate,
+      monthlySalary,
       profilePhoto,
       status,
       departmentId,
@@ -230,14 +230,14 @@ const updateEmployee = async (req, res) => {
     if (role !== undefined) {
       updateData.role = role.trim();
     }
-    if (hourlyRate !== undefined) {
-      if (isNaN(parseFloat(hourlyRate)) || parseFloat(hourlyRate) < 0) {
+    if (monthlySalary !== undefined) {
+      if (isNaN(parseFloat(monthlySalary)) || parseFloat(monthlySalary) < 0) {
         return res.status(400).json({
           success: false,
           error: "Valid hourly rate is required",
         });
       }
-      updateData.hourlyRate = parseFloat(hourlyRate);
+      updateData.monthlySalary = parseFloat(monthlySalary);
     }
     if (profilePhoto !== undefined) {
       updateData.profilePhoto = profilePhoto || null;

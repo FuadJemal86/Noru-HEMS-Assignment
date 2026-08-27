@@ -19,8 +19,14 @@ const {
   deleteRole,
 } = require("../controller/HR/role.controller");
 const {
-  getEmployeeDocuments,
-} = require("../controller/HR/employee-document.controller");
+  createShift,
+  getShifts,
+  updateShift,
+  deleteShift,
+  recordAttendance,
+  getAttendance,
+  getWorkforceReport,
+} = require("../controller/HR/workforce.controller");
 
 router.post("/employees/create", createEmployee);
 router.get("/employees/get", getEmployees);
@@ -37,6 +43,13 @@ router.get("/roles/get", getRoles);
 router.put("/roles/update/:id", updateRole);
 router.delete("/roles/delete/:id", deleteRole);
 
-router.get("/documents/get", getEmployeeDocuments);
+router.post("/shifts", createShift);
+router.get("/shifts", getShifts);
+router.put("/shifts/:id", updateShift);
+router.delete("/shifts/:id", deleteShift);
+
+router.post("/attendance", recordAttendance);
+router.get("/attendance", getAttendance);
+router.get("/reports/workforce", getWorkforceReport);
 
 module.exports = router;
