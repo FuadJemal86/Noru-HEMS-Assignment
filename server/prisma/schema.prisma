@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id           String   @id @default(uuid())
+  employeeId   String   @unique // e.g., "EMP001"
+  firstName    String
+  lastName     String
+  email        String   @unique
+  phone        String?
+  role         String // e.g., "Cashier", "Manager", "Server"
+  hourlyRate   Float
+  profilePhoto String?
+  status       String   @default("active") // active/inactive
+  departmentId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedules Schedule[]
+
+  employeeDocuments EmployeeDocument[]
+  department        Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  @@index([departmentId])
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees Employee[]
+}
+
+// Schedule Model
+model Schedule {
+  id         String   @id @default(uuid())
+  employeeId String
+  storeId    String? // Store/Location ID (optional)
+  shiftDate  DateTime
+  startTime  DateTime
+  endTime    DateTime
+  breakTime  Int? // Break time in minutes (e.g., 30 for 30 minutes)
+  position   String? // Role for this shift (e.g., "Cook", "Cashier")
+  notes      String?
+  status     String   @default("scheduled") // scheduled/completed/cancelled
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  //removed tables
+  breakStartTime DateTime? // Break start time
+  breakEndTime   DateTime? // Break end time
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// roles
+model Roles {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeDocument {
+  id           String  @id @default(cuid())
+  employeeId   String
+  documentName String
+  category     String // "Identity", "Contract", "Certification", "Educational", "Other"
+  documentType String? // "Passport", "Employment Contract", etc.
+  fileUrl      String // File path/URL where document is stored
+  fileName     String // Original file name
+  fileSize     Int? // File size in bytes
+  mimeType     String? // "application/pdf", "image/jpeg", etc.
+
+  issueDate  DateTime?
+  expiryDate DateTime?
+
+  description String?
+
+  // Access control
+  visibility String @default("hr_only") // "hr_only", "manager_hr", "all"
+
+  uploadedBy String // Who uploaded this document
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([category])
+  @@index([expiryDate])
+}

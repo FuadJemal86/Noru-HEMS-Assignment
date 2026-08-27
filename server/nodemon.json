@@ -1,0 +1,8 @@
+{
+  "watch": ["*.js", "controller/", "Routes/", "Utils/", "prisma/", "aiagent/*.js"],
+  "ext": "js",
+  "ignore": [
+    "aiagent/Projects/",
+    "uploads/"
+  ]
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" suppressHydrationWarning>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/usify11.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/usify11.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/usify11.png" />
+  <link rel="mask-icon" href="/usify11.png" color="#000000" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <title>usify Module</title>
+  <style>
+    /* Ensure favicon is visible and circular */
+    link[rel="icon"] {
+      border-radius: 50%;
+    }
+
+    /* Add a visible icon placeholder if needed - larger size */
+    .app-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      display: block;
+    }
+
+    /* Extra large icon variant */
+    .app-icon-lg {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Extra extra large icon variant */
+    .app-icon-xl {
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+  <script>
+    // Prevent flash of unstyled content for dark mode
+    (function () {
+      try {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // Handle system theme
+        let theme = stored;
+        if (!theme || theme === 'system') {
+          theme = prefersDark ? 'dark' : 'light';
+        }
+
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {
+        // Fallback to system preference if localStorage fails
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    })();
+  </script>
+</head>
+
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
