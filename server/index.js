@@ -19,6 +19,7 @@ app.use(
         origin: [
             "http://localhost:5173",
             "http://localhost:5174",
+            "https://noru-hems-assignment.vercel.app/"
         ],
         methods: ["GET", "POST", "PUT", "DELETE", "UPDATE"],
         credentials: true,
